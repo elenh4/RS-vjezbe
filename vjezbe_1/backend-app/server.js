@@ -15,9 +15,7 @@ let expenses = [
 ];
 
 
-app.get('/api/expenses', (req, res) => {
-  res.json(expenses);
-});
+app.get('/api/expenses', (req, res) => {res.json(expenses);});
 
 app.post('/api/expenses', (req, res) => {
   const { title, amount } = req.body;
