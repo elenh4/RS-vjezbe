@@ -1,35 +1,61 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
-// Stanja za novi trošak
+const API_URL = 'http://localhost:3000/api/expenses'
+
+
 const title = ref('')
 const amount = ref('')
+const expenses = ref([])
 
-// Lista troškova
-const expenses = ref([
-  { id: 1, title: 'Kava', amount: 2.50 },
-  { id: 2, title: 'Gljivice i kruh', amount: 4.80 }
-])
+onMounted(async () => {
+  try {
+    const response = await fetch(API_URL)
+    expenses.value = await response.json()
+  } catch (error) {
+    console.error('Greška pri dohvatu s backenda:', error)
+  }
+})
 
-// Funkcija za dodavanje troška
-function addExpense() {
+async function addExpense() {
   if (title.value.trim() !== '' && amount.value > 0) {
-    expenses.value.push({
-      id: Date.now(),
-      title: title.value,
-      amount: parseFloat(amount.value)
-    })
-    title.value = ''
-    amount.value = ''
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.value,
+          amount: parseFloat(amount.value)
+        })
+      })
+
+      if (response.ok) {
+        const newExpense = await response.json()
+        expenses.value.push(newExpense) 
+        title.value = ''
+        amount.value = ''
+      }
+    } catch (error) {
+      console.error('Greška pri spremanju troška:', error)
+    }
   }
 }
 
-// Funkcija za brisanje troška
-function removeExpense(id) {
-  expenses.value = expenses.value.filter(expense => expense.id !== id)
+
+async function removeExpense(id) {
+  try {
+    const response = await fetch(`${API_URL}/${id}`, {
+      method: 'DELETE'
+    })
+
+    if (response.ok) {
+      expenses.value = expenses.value.filter(expense => expense.id !== id)
+    }
+  } catch (error) {
+    console.error('Greška pri brisanju troška:', error)
+  }
 }
 
-// Izračun ukupnog iznosa (reaktivno pomoću computed)
 const totalAmount = computed(() => {
   return expenses.value.reduce((sum, expense) => sum + expense.amount, 0).toFixed(2)
 })
@@ -37,15 +63,13 @@ const totalAmount = computed(() => {
 
 <template>
   <main class="container">
-    <h1>Praćenje Troškova</h1>
+    <h1>Praćenje Troškova (Full-stack)</h1>
 
-    <!-- Prikaz ukupnog iznosa -->
     <section class="card total-card">
       <h2>Ukupno potrošeno:</h2>
       <p class="total-price">{{ totalAmount }} €</p>
     </section>
 
-    <!-- Forma za unos novog troška -->
     <section class="card">
       <h2>Dodaj novi trošak</h2>
       <div class="form-group">
@@ -64,7 +88,7 @@ const totalAmount = computed(() => {
       </div>
     </section>
 
-    <!-- Lista troškova -->
+   
     <section class="card">
       <h2>Povijest troškova</h2>
       <p v-if="expenses.length === 0" class="empty-text">Nema unesenih troškova.</p>
