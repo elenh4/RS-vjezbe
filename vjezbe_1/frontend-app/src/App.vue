@@ -1,24 +1,66 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/expenses'
+const API_URL = (import.meta.env.VITE_API_URL || '') + '/api/expenses'
 
 const title = ref('')
 const amount = ref('')
 const expenses = ref([])
 const error = ref('')
 
-onMounted(async () => {
+const totalAmount = computed(() =>
+  expenses.value.reduce((sum, e) => sum + Number(e.amount), 0).toFixed(2),
+)
+
+async function loadExpenses() {
   try {
     const response = await fetch(API_URL)
     if (!response.ok) throw new Error('HTTP ' + response.status)
     const data = await response.json()
     expenses.value = Array.isArray(data) ? data : []
+    error.value = ''
   } catch (e) {
     error.value = 'Ne mogu se spojiti na backend.'
     console.error('Greška pri dohvatu s backenda:', e)
   }
-})
+}
+
+async function addExpense() {
+  if (!title.value.trim() || !amount.value) {
+    error.value = 'Naziv i iznos su obavezni!'
+    return
+  }
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title.value.trim(), amount: amount.value }),
+    })
+    if (!response.ok) throw new Error('HTTP ' + response.status)
+    const created = await response.json()
+    expenses.value.push(created)
+    title.value = ''
+    amount.value = ''
+    error.value = ''
+  } catch (e) {
+    error.value = 'Dodavanje nije uspjelo.'
+    console.error(e)
+  }
+}
+
+async function removeExpense(id) {
+  try {
+    const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' })
+    if (!response.ok) throw new Error('HTTP ' + response.status)
+    expenses.value = expenses.value.filter((e) => e.id !== id)
+    error.value = ''
+  } catch (e) {
+    error.value = 'Brisanje nije uspjelo.'
+    console.error(e)
+  }
+}
+
+onMounted(loadExpenses)
 </script>
 
 <template>
