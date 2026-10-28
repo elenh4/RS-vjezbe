@@ -1,69 +1,30 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
-const API_URL = 'http://localhost:3000/api/expenses'
-
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/expenses'
 
 const title = ref('')
 const amount = ref('')
 const expenses = ref([])
+const error = ref('')
 
 onMounted(async () => {
   try {
     const response = await fetch(API_URL)
-    expenses.value = await response.json()
-  } catch (error) {
-    console.error('Greška pri dohvatu s backenda:', error)
+    if (!response.ok) throw new Error('HTTP ' + response.status)
+    const data = await response.json()
+    expenses.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    error.value = 'Ne mogu se spojiti na backend.'
+    console.error('Greška pri dohvatu s backenda:', e)
   }
-})
-
-async function addExpense() {
-  if (title.value.trim() !== '' && amount.value > 0) {
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.value,
-          amount: parseFloat(amount.value)
-        })
-      })
-
-      if (response.ok) {
-        const newExpense = await response.json()
-        expenses.value.push(newExpense) 
-        title.value = ''
-        amount.value = ''
-      }
-    } catch (error) {
-      console.error('Greška pri spremanju troška:', error)
-    }
-  }
-}
-
-
-async function removeExpense(id) {
-  try {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: 'DELETE'
-    })
-
-    if (response.ok) {
-      expenses.value = expenses.value.filter(expense => expense.id !== id)
-    }
-  } catch (error) {
-    console.error('Greška pri brisanju troška:', error)
-  }
-}
-
-const totalAmount = computed(() => {
-  return expenses.value.reduce((sum, expense) => sum + expense.amount, 0).toFixed(2)
 })
 </script>
 
 <template>
   <main class="container">
     <h1>Praćenje Troškova (Full-stack)</h1>
+    <p v-if="error" style="color: red; text-align: center">{{ error }}</p>
 
     <section class="card total-card">
       <h2>Ukupno potrošeno:</h2>
@@ -96,7 +57,7 @@ const totalAmount = computed(() => {
         <li v-for="expense in expenses" :key="expense.id">
           <span class="expense-title">{{ expense.title }}</span>
           <div class="expense-right">
-            <span class="expense-amount">{{ expense.amount.toFixed(2) }} €</span>
+            <span class="expense-amount">{{ Number(expense.amount).toFixed(2) }} €</span>
             <button class="delete-btn" @click="removeExpense(expense.id)">X</button>
           </div>
         </li>
